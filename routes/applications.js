@@ -7,10 +7,10 @@ const router = express.Router();
 router.get('/', authenticate, authorize('mosque_admin', 'super_admin'), async (req, res) => {
   try {
     let sql = `SELECT app.*, a.full_name, a.national_id, a.phone, a.family_size, a.address,
-                      m.name as mosque_name
-               FROM applications app
-               JOIN applicants a ON a.id = app.applicant_id
-               JOIN mosques m ON m.id = app.mosque_id`;
+                       a.proof_document_path, m.name as mosque_name
+                FROM applications app
+                JOIN applicants a ON a.id = app.applicant_id
+                JOIN mosques m ON m.id = app.mosque_id`;
     const params = [];
     // Mosque admin sees only their mosque
     if (req.user.role === 'mosque_admin') {

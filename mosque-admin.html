@@ -135,7 +135,16 @@
               <Row label="العنوان" value={app.address} />
               <Row label="عدد أفراد الأسرة" value={app.familySize} />
               <Row label="تاريخ التقديم" value={app.appliedDate} />
-              <Row label="المستندات" value={app.docs ? 'مرفقة ✓' : 'غير مرفقة'} />
+              <Row label="المستندات" value={
+                app.proofDoc
+                  ? <a href={app.proofDoc} target="_blank" rel="noopener noreferrer"
+                       className="inline-flex items-center gap-1 text-[var(--accent)] hover:underline"
+                       onClick={e => e.stopPropagation()}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      عرض المستند
+                    </a>
+                  : 'غير مرفق'
+              } />
               <Row label="الحالة" value={<span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text}`}><span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />{s.label}</span>} />
               {app.reviewedNotes && <Row label="ملاحظات" value={app.reviewedNotes} />}
             </div>
@@ -192,7 +201,7 @@
               id: a.id, name: a.full_name, nationalId: a.national_id, phone: a.phone,
               familySize: a.family_size, address: a.address, status: a.status,
               appliedDate: a.created_at ? new Date(a.created_at).toLocaleDateString('ar-SA') : '—',
-              docs: true, reviewedNotes: a.admin_notes
+              proofDoc: a.proof_document_path, reviewedNotes: a.admin_notes
             })));
             if (apps.length > 0) setMosqueName(apps[0].mosque_name || 'المسجد');
           }

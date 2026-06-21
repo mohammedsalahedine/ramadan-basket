@@ -4,9 +4,16 @@ const path = require('path');
 const { query } = require('../db');
 const { authenticate, authorize, audit } = require('../middleware/auth');
 
-const router = express.Router();
+const storage = multer.diskStorage({
+  destination: process.env.UPLOAD_DIR || './uploads',
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, unique + ext);
+  }
+});
 const upload = multer({
-  dest: process.env.UPLOAD_DIR || './uploads',
+  storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['.pdf', '.jpg', '.jpeg', '.png'];
@@ -72,8 +79,8 @@ router.post('/register', upload.single('proofDocument'), async (req, res) => {
       `INSERT INTO applicants (full_name, national_id, phone, address, family_size, proof_document_path, gps_latitude, gps_longitude, user_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id`,
-      [fullName, nationalId, phone, address, familySize,
-       req.file ? req.file.path : null, gpsLat || null, gpsLng || null, userId]
+       [fullName, nationalId, phone, address, familySize,
+        req.file ? '/uploads/' + req.file.filename : null, gpsLat || null, gpsLng || null, userId]
     );
     const applicantId = applicantResult.rows[0].id;
     // Create application
