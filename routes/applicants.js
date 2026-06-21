@@ -5,6 +5,8 @@ const fs = require('fs');
 const { query } = require('../db');
 const { authenticate, authorize, audit } = require('../middleware/auth');
 
+const router = express.Router();
+
 const storage = multer.diskStorage({
   destination: process.env.UPLOAD_DIR || './uploads',
   filename: (req, file, cb) => {
