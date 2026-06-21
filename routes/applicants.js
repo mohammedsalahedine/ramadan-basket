@@ -150,8 +150,22 @@ router.get('/duplicates', authenticate, authorize('super_admin'), async (req, re
   }
 });
 
+// Accept token via query param for links opened in new tabs
+const docAuth = (req, res, next) => {
+  const token = req.query.token || req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const jwt = require('jsonwebtoken');
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    if (!['mosque_admin', 'super_admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  } catch { return res.status(401).json({ error: 'Invalid token' }); }
+};
+
 // Serve applicant document file
-router.get('/:id/document', authenticate, authorize('mosque_admin', 'super_admin'), async (req, res) => {
+router.get('/:id/document', docAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await query('SELECT proof_document_path FROM applicants WHERE id = $1', [id]);
@@ -163,12 +177,11 @@ router.get('/:id/document', authenticate, authorize('mosque_admin', 'super_admin
     const filename = path.basename(relPath);
     const filePath = path.join(uploadDir, filename);
 
-    // Try exact path first, then try without extension (for backward compat)
     let finalPath = filePath;
     if (!fs.existsSync(finalPath)) {
       const extless = path.join(uploadDir, path.parse(filename).name);
       if (fs.existsSync(extless)) finalPath = extless;
-      else return res.status(404).json({ error: 'File not found on disk' });
+      else return res.status(404).json({ error: 'File not found on disk. Uploads are cleared after server restart — files must be re-uploaded.' });
     }
     res.sendFile(finalPath);
   } catch (err) {
