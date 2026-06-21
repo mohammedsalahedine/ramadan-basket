@@ -118,18 +118,18 @@ async function autoSeed() {
         [m.name, m.address, m.lat, m.lng, 'mosque' + (i + 1) + '@system.com']
       );
     }
+    // Always recreate sample document file (uploads are ephemeral on Render)
+    const sampleDocPath = path.join(uploadDir, 'sample-doc.pdf');
+    try {
+      const minimalPdf = Buffer.from(
+        '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF'
+      );
+      fs.writeFileSync(sampleDocPath, minimalPdf);
+    } catch (_) { /* non-critical */ }
+
     // Create sample applicants with documents
     const applicantCount = await pool.query('SELECT COUNT(*)::int as count FROM applicants');
     if (applicantCount.rows[0].count === 0) {
-      // Create sample document file
-      const sampleDocPath = path.join(uploadDir, 'sample-doc.pdf');
-      if (!fs.existsSync(sampleDocPath)) {
-        const minimalPdf = Buffer.from(
-          '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF'
-        );
-        fs.writeFileSync(sampleDocPath, minimalPdf);
-      }
-
       const sampleApplicants = [
         { name: 'محمد أحمد السالم', nationalId: '1000000001', phone: '0555111111', address: 'الرياض، حي النزهة، شارع الأمير سلطان', familySize: 6 },
         { name: 'سارة عبدالله الناصر', nationalId: '1000000002', phone: '0555222222', address: 'الرياض، حي العليا، شارع التحلية', familySize: 4 },

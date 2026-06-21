@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.get('/', authenticate, authorize('mosque_admin', 'super_admin'), async (req, res) => {
   try {
-    let sql = `SELECT app.*, a.full_name, a.national_id, a.phone, a.family_size, a.address,
-                       a.proof_document_path, m.name as mosque_name
+    let sql = `SELECT app.*, a.id as applicant_id, a.full_name, a.national_id, a.phone, a.family_size, a.address,
+                        a.proof_document_path, m.name as mosque_name
                 FROM applications app
                 JOIN applicants a ON a.id = app.applicant_id
                 JOIN mosques m ON m.id = app.mosque_id`;

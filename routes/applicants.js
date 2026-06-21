@@ -164,7 +164,7 @@ const docAuth = (req, res, next) => {
   } catch { return res.status(401).json({ error: 'Invalid token' }); }
 };
 
-// Serve applicant document file
+// Serve applicant document file (returns placeholder if file missing on disk)
 router.get('/:id/document', docAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -177,13 +177,20 @@ router.get('/:id/document', docAuth, async (req, res) => {
     const filename = path.basename(relPath);
     const filePath = path.join(uploadDir, filename);
 
-    let finalPath = filePath;
-    if (!fs.existsSync(finalPath)) {
-      const extless = path.join(uploadDir, path.parse(filename).name);
-      if (fs.existsSync(extless)) finalPath = extless;
-      else return res.status(404).json({ error: 'File not found on disk. Uploads are cleared after server restart — files must be re-uploaded.' });
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
     }
-    res.sendFile(finalPath);
+    // Try without extension (legacy)
+    const extless = path.join(uploadDir, path.parse(filename).name);
+    if (fs.existsSync(extless)) {
+      return res.sendFile(extless);
+    }
+    // File missing — return a placeholder PDF instead of 404
+    const placeholder = Buffer.from(
+      '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R>>endobj\n4 0 obj<</Length 112>>stream\nBT /F1 24 Tf 50 700 Td (Document is no longer available on the server.) Tj ET\nBT /F1 16 Tf 50 660 Td (Please re-upload the file through the registration form.) Tj ET\nBT /F1 12 Tf 50 620 Td (Server uploads are temporary and cleared after restart.) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000212 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n379\n%%EOF'
+    );
+    res.set('Content-Type', 'application/pdf');
+    res.send(placeholder);
   } catch (err) {
     console.error('Serve document error:', err);
     res.status(500).json({ error: 'Server error' });
