@@ -41,28 +41,6 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
-    const MOSQUES = [
-      { id: 1, name: 'مسجد الفاروق', address: 'الرياض، حي النزهة', admin: 'أحمد الفاروق', applicants: 42, approved: 28, baskets: 15 },
-      { id: 2, name: 'مسجد الرحمن', address: 'الرياض، حي العليا', admin: 'عمر الرحمن', applicants: 38, approved: 22, baskets: 10 },
-      { id: 3, name: 'مسجد الملك سعود', address: 'الرياض، حي الملز', admin: 'خالد السعود', applicants: 51, approved: 35, baskets: 20 },
-      { id: 4, name: 'مسجد ابن عثيمين', address: 'الرياض، حي السليمانية', admin: '—', applicants: 29, approved: 18, baskets: 8 },
-      { id: 5, name: 'مسجد الحرمين', address: 'الرياض، حي الروضة', admin: 'نايف الحرمين', applicants: 33, approved: 25, baskets: 12 },
-    ];
-
-    const DUPLICATE_ATTEMPTS = [
-      { id: 1, nationalId: '1048203912', name: 'محمد عبدالله أحمد', phone: '0555123456', attemptedMosque: 'مسجد الرحمن', existingIn: 'مسجد الفاروق', date: '٢٠٢٤-٠٣-١٥', ip: '192.168.1.1' },
-      { id: 2, nationalId: '1076512345', name: 'سارة خالد العتيبي', phone: '0555987654', attemptedMosque: 'مسجد الملك سعود', existingIn: 'مسجد الفاروق', date: '٢٠٢٤-٠٣-١٤', ip: '192.168.1.2' },
-      { id: 3, nationalId: '1098765432', name: 'فهد سعد القحطاني', phone: '0555112233', attemptedMosque: 'مسجد الحرمين', existingIn: 'مسجد الفاروق', date: '٢٠٢٤-٠٣-١٣', ip: '192.168.1.3' },
-    ];
-
-    const AUDIT_LOG = [
-      { id: 1, user: 'أحمد الفاروق', action: 'قبول طلب', entity: 'محمد عبدالله', date: '٢٠٢٤-٠٣-١٥ ١٠:٣٠ ص' },
-      { id: 2, user: 'عمر الرحمن', action: 'تسليم سلة', entity: 'سارة العتيبي', date: '٢٠٢٤-٠٣-١٥ ٠٩:١٥ ص' },
-      { id: 3, user: 'النظام', action: 'محاولة تسجيل مكرر', entity: 'رقم هوية ١٠٤٨٢٠٣٩١٢', date: '٢٠٢٤-٠٣-١٤ ١١:٠٠ ص' },
-      { id: 4, user: 'خالد السعود', action: 'رفض طلب', entity: 'فهد القحطاني', date: '٢٠٢٤-٠٣-١٤ ٠٨:٤٥ ص' },
-      { id: 5, user: 'أحمد الفاروق', action: 'تسجيل مستفيد جديد', entity: 'نورة الدوسري', date: '٢٠٢٤-٠٣-١٣ ٠٢:٠٠ م' },
-    ];
-
     function ThemeToggle({ dark, onToggle }) {
       return (
         <button onClick={onToggle}
@@ -91,30 +69,71 @@
       const [activeTab, setActiveTab] = useState('overview');
       const [searchId, setSearchId] = useState('');
       const [searchResult, setSearchResult] = useState(null);
+      const [mosques, setMosques] = useState([]);
+      const [stats, setStats] = useState({ mosqueCount: 0, total_applicants: 0, approved_count: 0, baskets_distributed: 0, duplicateCount: 0 });
+      const [duplicates, setDuplicates] = useState([]);
+      const [auditLog, setAuditLog] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const token = (() => { try { return localStorage.getItem('rm-token'); } catch { return null; } })();
+      const user = (() => { try { return JSON.parse(localStorage.getItem('rm-user') || '{}'); } catch { return {}; } })();
 
       useEffect(() => {
         document.documentElement.classList.toggle('dark', dark);
         try { localStorage.setItem('rm-dark', dark); } catch {}
       }, [dark]);
 
-      const totals = useMemo(() => ({
-        totalApplicants: MOSQUES.reduce((s, m) => s + m.applicants, 0),
-        totalApproved: MOSQUES.reduce((s, m) => s + m.approved, 0),
-        totalBaskets: MOSQUES.reduce((s, m) => s + m.baskets, 0),
-        duplicateCount: DUPLICATE_ATTEMPTS.length,
-        mosqueCount: MOSQUES.length,
-      }), []);
+      const authHeaders = { 'Authorization': 'Bearer ' + token };
 
-      const handleSearch = () => {
+      const fetchAll = () => {
+        setLoading(true);
+        Promise.all([
+          fetch('/api/dashboard/stats', { headers: authHeaders }).then(r => r.json()).catch(() => ({})),
+          fetch('/api/mosques', { headers: authHeaders }).then(r => r.json()).catch(() => []),
+          fetch('/api/applicants/duplicates', { headers: authHeaders }).then(r => r.json()).catch(() => []),
+          fetch('/api/dashboard/audit', { headers: authHeaders }).then(r => r.json()).catch(() => []),
+        ]).then(([s, m, d, a]) => {
+          if (s.total_applicants !== undefined) setStats(s);
+          if (Array.isArray(m)) setMosques(m);
+          if (Array.isArray(d)) setDuplicates(d);
+          if (Array.isArray(a)) setAuditLog(a);
+        }).finally(() => setLoading(false));
+      };
+
+      useEffect(() => { fetchAll(); }, []);
+
+      const handleSearch = async () => {
         if (!searchId.trim() || searchId.length < 10) return;
-        setSearchResult({
-          name: 'محمد عبدالله أحمد',
-          nationalId: searchId,
-          phone: '0555123456',
-          status: 'approved',
-          mosque: 'مسجد الفاروق',
-          date: '٢٠٢٤-٠٣-١٠',
-        });
+        try {
+          const res = await fetch('/api/applicants/search?nationalId=' + encodeURIComponent(searchId.trim()), { headers: authHeaders });
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const r = data[0];
+            setSearchResult({
+              name: r.full_name, nationalId: r.national_id, phone: r.phone,
+              status: r.status, mosque: r.mosque_name, date: r.applied_date ? new Date(r.applied_date).toLocaleDateString('ar-SA') : '—'
+            });
+          } else {
+            setSearchResult({ name: 'لا توجد نتائج', nationalId: searchId, phone: '—', status: '—', mosque: '—', date: '—' });
+          }
+        } catch { setSearchResult({ name: 'خطأ في البحث', nationalId: searchId, phone: '—', status: '—', mosque: '—', date: '—' }); }
+      };
+
+      const downloadReport = async (type, format) => {
+        try {
+          const url = '/api/dashboard/reports/' + type + '/download?format=' + format + '&token=' + token;
+          if (format === 'html') {
+            window.open(url, '_blank');
+          } else {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'report-' + type + '.xlsx';
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }
+        } catch {}
       };
 
       const TABS = [
@@ -124,6 +143,8 @@
         { key: 'audit', label: 'سجل التدقيق' },
         { key: 'reports', label: 'التقارير' },
       ];
+
+      const STATUS_LABELS = { pending: 'قيد الانتظار', approved: 'تمت الموافقة', rejected: 'مرفوض', received_basket: 'تم الاستلام' };
 
       return (
         <div className="min-h-screen flex flex-col relative z-10">
@@ -137,7 +158,7 @@
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-white/60">المدير: مشرف النظام</span>
+                <span className="text-xs text-white/60">المدير: {user.fullName || ''}</span>
                 <ThemeToggle dark={dark} onToggle={() => setDark(d => !d)} />
               </div>
             </div>
@@ -155,37 +176,36 @@
           </div>
 
           <div className="max-w-6xl mx-auto w-full px-4 py-6 fade-in">
-            {activeTab === 'overview' && (
+            {loading && <div className="text-center text-white/60 py-12">جاري التحميل...</div>}
+
+            {!loading && activeTab === 'overview' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  <StatCard label="إجمالي المساجد" value={totals.mosqueCount} color="text-[var(--accent)]" sub={`${MOSQUES.filter(m => m.admin !== '—').length} نشط`} />
-                  <StatCard label="إجمالي المتقدمين" value={totals.totalApplicants} />
-                  <StatCard label="تمت الموافقة" value={totals.totalApproved} color="text-green-600 dark:text-green-400" sub={`${Math.round(totals.totalApproved / totals.totalApplicants * 100)}%`} />
-                  <StatCard label="سلال موزعة" value={totals.totalBaskets} color="text-blue-600 dark:text-blue-400" />
-                  <StatCard label="محاولات مكررة" value={totals.duplicateCount} color="text-amber-600 dark:text-amber-400" sub="تم منعها" />
+                  <StatCard label="إجمالي المساجد" value={stats.mosqueCount || 0} color="text-[var(--accent)]" sub={`${mosques.filter(m => m.admin_name).length} نشط`} />
+                  <StatCard label="إجمالي المتقدمين" value={stats.total_applicants || 0} />
+                  <StatCard label="تمت الموافقة" value={stats.approved_count || 0} color="text-green-600 dark:text-green-400" />
+                  <StatCard label="سلال موزعة" value={stats.baskets_distributed || 0} color="text-blue-600 dark:text-blue-400" />
+                  <StatCard label="محاولات مكررة" value={stats.duplicateCount || 0} color="text-amber-600 dark:text-amber-400" sub="تم منعها" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="glass rounded-xl p-4">
                     <h3 className="font-semibold mb-3 text-sm">أداء المساجد</h3>
                     <div className="space-y-2">
-                      {MOSQUES.map(m => {
-                        const pct = m.applicants > 0 ? Math.round(m.baskets / m.applicants * 100) : 0;
-                        return (
-                          <div key={m.id} className="flex items-center gap-3 py-2 border-b border-white/20 dark:border-white/5 last:border-0">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{m.name}</div>
-                              <div className="text-xs text-white/70">{m.approved} موافقة · {m.baskets} سلة</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-bold">{pct}%</div>
-                              <div className="w-16 h-1.5 rounded-full bg-white/30 mt-1 overflow-hidden">
-                                <div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} />
-                              </div>
+                      {mosques.map(m => (
+                        <div key={m.id} className="flex items-center gap-3 py-2 border-b border-white/20 dark:border-white/5 last:border-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{m.name}</div>
+                            <div className="text-xs text-white/70">{m.approved_count || 0} موافقة · {m.basket_count || 0} سلة</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold">{m.total_applicants > 0 ? Math.round((m.basket_count || 0) / m.total_applicants * 100) : 0}%</div>
+                            <div className="w-16 h-1.5 rounded-full bg-white/30 mt-1 overflow-hidden">
+                              <div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${m.total_applicants > 0 ? Math.round((m.basket_count || 0) / m.total_applicants * 100) : 0}%` }} />
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -204,7 +224,7 @@
                         <div className="flex justify-between"><span className="text-[var(--muted)]">رقم الهوية</span><span className="font-medium font-mono" dir="ltr">{searchResult.nationalId}</span></div>
                         <div className="flex justify-between"><span className="text-[var(--muted)]">الجوال</span><span className="font-medium" dir="ltr">{searchResult.phone}</span></div>
                         <div className="flex justify-between"><span className="text-[var(--muted)]">المسجد</span><span className="font-medium">{searchResult.mosque}</span></div>
-                        <div className="flex justify-between"><span className="text-[var(--muted)]">الحالة</span><span className="px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs font-medium">تمت الموافقة</span></div>
+                        <div className="flex justify-between"><span className="text-[var(--muted)]">الحالة</span><span className="px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs font-medium">{STATUS_LABELS[searchResult.status] || searchResult.status}</span></div>
                       </div>
                     )}
                   </div>
@@ -213,15 +233,15 @@
                 <div className="glass rounded-xl p-4">
                   <h3 className="font-semibold mb-3 text-sm">آخر النشاطات</h3>
                   <div className="space-y-1">
-                    {AUDIT_LOG.slice(0, 4).map(log => (
-                      <div key={log.id} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0 text-sm">
+                    {auditLog.slice(0, 5).map((log, i) => (
+                      <div key={log.id || i} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0 text-sm">
                         <div className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0" />
                         <div className="flex-1">
-                          <span className="font-medium">{log.user}</span>
+                          <span className="font-medium">{log.user_name || 'النظام'}</span>
                           <span className="text-[var(--muted)]"> — {log.action}: </span>
-                          <span>{log.entity}</span>
+                          <span>{log.entity_type || ''} {log.entity_id ? log.entity_id.substring(0, 8) : ''}</span>
                         </div>
-                        <div className="text-xs text-[var(--muted)] shrink-0">{log.date}</div>
+                        <div className="text-xs text-[var(--muted)] shrink-0">{log.created_at ? new Date(log.created_at).toLocaleDateString('ar-SA') : '—'}</div>
                       </div>
                     ))}
                   </div>
@@ -229,11 +249,10 @@
               </div>
             )}
 
-            {activeTab === 'mosques' && (
+            {!loading && activeTab === 'mosques' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold">إدارة المساجد</h3>
-                  <button className="px-4 py-2 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-all">+ إضافة مسجد</button>
                 </div>
                 <div className="overflow-x-auto scroll-hide">
                   <table className="w-full text-sm glass rounded-xl">
@@ -244,23 +263,19 @@
                         <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">المتقدمون</th>
                         <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">الموافقات</th>
                         <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">السلال</th>
-                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">الإجراءات</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {MOSQUES.map(m => (
+                      {mosques.map(m => (
                         <tr key={m.id} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5 transition-colors">
                           <td className="py-3 px-3">
                             <div className="font-medium">{m.name}</div>
                             <div className="text-xs text-[var(--muted)]">{m.address}</div>
                           </td>
-                          <td className="py-3 px-3 text-sm">{m.admin}</td>
-                          <td className="py-3 px-3 text-sm">{m.applicants}</td>
-                          <td className="py-3 px-3 text-sm text-green-600 dark:text-green-400 font-medium">{m.approved}</td>
-                          <td className="py-3 px-3 text-sm text-blue-600 dark:text-blue-400 font-medium">{m.baskets}</td>
-                          <td className="py-3 px-3">
-                            <button className="text-xs text-[var(--accent)] hover:underline font-medium">تعديل</button>
-                          </td>
+                          <td className="py-3 px-3 text-sm">{m.admin_name || '—'}</td>
+                          <td className="py-3 px-3 text-sm">{m.total_applicants || 0}</td>
+                          <td className="py-3 px-3 text-sm text-green-600 dark:text-green-400 font-medium">{m.approved_count || 0}</td>
+                          <td className="py-3 px-3 text-sm text-blue-600 dark:text-blue-400 font-medium">{m.basket_count || 0}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -269,11 +284,11 @@
               </div>
             )}
 
-            {activeTab === 'duplicates' && (
+            {!loading && activeTab === 'duplicates' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold">محاولات التسجيل المكرر</h3>
-                  <span className="text-xs text-[var(--muted)]">إجمالي {DUPLICATE_ATTEMPTS.length} محاولة</span>
+                  <span className="text-xs text-[var(--muted)]">إجمالي {duplicates.length} محاولة</span>
                 </div>
                 <div className="overflow-x-auto scroll-hide">
                   <table className="w-full text-sm glass rounded-xl">
@@ -287,23 +302,23 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {DUPLICATE_ATTEMPTS.map(d => (
-                        <tr key={d.id} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5">
-                          <td className="py-3 px-3 font-mono text-xs" dir="ltr">{d.nationalId}</td>
-                          <td className="py-3 px-3 text-sm">{d.name}</td>
-                          <td className="py-3 px-3 text-sm text-red-600">{d.attemptedMosque}</td>
-                          <td className="py-3 px-3 text-sm text-green-600">{d.existingIn}</td>
-                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{d.date}</td>
+                      {duplicates.map((d, i) => (
+                        <tr key={d.id || i} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5">
+                          <td className="py-3 px-3 font-mono text-xs" dir="ltr">{d.national_id || '—'}</td>
+                          <td className="py-3 px-3 text-sm">{d.applicant_name || d.full_name || '—'}</td>
+                          <td className="py-3 px-3 text-sm text-red-600">{d.attempted_mosque_name || d.attempted_mosque || '—'}</td>
+                          <td className="py-3 px-3 text-sm text-green-600">{d.existing_mosque_name || d.existing_mosque || '—'}</td>
+                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{d.created_at ? new Date(d.created_at).toLocaleDateString('ar-SA') : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <button className="px-4 py-2 rounded-xl glass text-sm text-white/80 hover:text-white transition-all">تصدير التقرير (Excel)</button>
+                <button onClick={() => downloadReport('duplicates', 'xlsx')} className="px-4 py-2 rounded-xl glass text-sm text-white/80 hover:text-white transition-all">تصدير التقرير (Excel)</button>
               </div>
             )}
 
-            {activeTab === 'audit' && (
+            {!loading && activeTab === 'audit' && (
               <div className="space-y-3">
                 <h3 className="font-semibold mb-2">سجل التدقيق</h3>
                 <div className="overflow-x-auto scroll-hide">
@@ -317,37 +332,36 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {AUDIT_LOG.map(log => (
-                        <tr key={log.id} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5">
-                          <td className="py-3 px-3 text-sm font-medium">{log.user}</td>
+                      {auditLog.map((log, i) => (
+                        <tr key={log.id || i} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5">
+                          <td className="py-3 px-3 text-sm font-medium">{log.user_name || 'النظام'}</td>
                           <td className="py-3 px-3 text-sm">{log.action}</td>
-                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{log.entity}</td>
-                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{log.date}</td>
+                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{log.entity_type || ''}</td>
+                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{log.created_at ? new Date(log.created_at).toLocaleDateString('ar-SA') : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <button className="px-4 py-2 rounded-xl glass text-sm text-white/80 hover:text-white transition-all">تصدير السجل (PDF)</button>
+                <button onClick={() => downloadReport('families', 'html')} className="px-4 py-2 rounded-xl glass text-sm text-white/80 hover:text-white transition-all">تصدير السجل (PDF)</button>
               </div>
             )}
 
-            {activeTab === 'reports' && (
+            {!loading && activeTab === 'reports' && (
               <div className="space-y-4">
                 <h3 className="font-semibold mb-2">التقارير</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {[
-                    { title: 'تقرير التوزيع', desc: 'إجمالي السلال الموزعة لكل مسجد', icon: '📊' },
-                    { title: 'تقرير المكررين', desc: 'قائمة محاولات التسجيل المكرر', icon: '🚫' },
-                    { title: 'تقرير الأسرة', desc: 'قائمة جميع العائلات المسجلة', icon: '👨‍👩‍👧‍👦' },
+                    { type: 'distribution', title: 'تقرير التوزيع', desc: 'إجمالي السلال الموزعة لكل مسجد' },
+                    { type: 'duplicates', title: 'تقرير المكررين', desc: 'قائمة محاولات التسجيل المكرر' },
+                    { type: 'families', title: 'تقرير الأسرة', desc: 'قائمة جميع العائلات المسجلة' },
                   ].map((r, i) => (
-                    <div key={i} className="glass rounded-xl p-4 hover:shadow-xl transition-all cursor-pointer">
-                      <div className="text-2xl mb-2">{r.icon}</div>
+                    <div key={i} className="glass rounded-xl p-4 hover:shadow-xl transition-all">
                       <h4 className="font-medium text-sm">{r.title}</h4>
                       <p className="text-xs text-[var(--muted)] mt-1">{r.desc}</p>
                       <div className="flex gap-2 mt-3">
-                        <button className="px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white text-xs font-medium hover:opacity-90 transition-all">Excel</button>
-                        <button className="px-3 py-1.5 rounded-lg glass text-xs font-medium hover:bg-white/40 transition-all">PDF</button>
+                        <button onClick={() => downloadReport(r.type, 'xlsx')} className="px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white text-xs font-medium hover:opacity-90 transition-all">Excel</button>
+                        <button onClick={() => downloadReport(r.type, 'html')} className="px-3 py-1.5 rounded-lg glass text-xs font-medium hover:bg-white/40 transition-all">PDF</button>
                       </div>
                     </div>
                   ))}

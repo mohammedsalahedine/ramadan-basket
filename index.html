@@ -66,6 +66,7 @@
 
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
+    const API = { base: '', token: () => { try { return localStorage.getItem('rm-token'); } catch { return null; } } };
 
     const LANTERN_SVG = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2v2M8 4h8M6 8h12M5 12h14M6 16h12M8 20h8M12 22v-2"/><path d="M12 2C8 4 6 8 6 12s2 8 6 10c4-2 6-6 6-10S16 4 12 2z" fill="none"/></svg>`;
 
@@ -99,9 +100,19 @@
           return;
         }
         setLoading(true);
-        await new Promise(r => setTimeout(r, 800));
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim(), password })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error === 'Invalid credentials' ? 'بيانات الدخول غير صحيحة' : data.error || 'فشل تسجيل الدخول');
+          onLogin({ token: data.token, user: data.user, role });
+        } catch (err) {
+          setError(err.message || 'فشل الاتصال بالخادم');
+        }
         setLoading(false);
-        onLogin({ email, password, role });
       };
 
       return (
@@ -204,6 +215,10 @@
       }, [dark]);
 
       const handleLogin = useCallback((data) => {
+        try {
+          localStorage.setItem('rm-token', data.token);
+          localStorage.setItem('rm-user', JSON.stringify(data.user));
+        } catch {}
         const roleRoutes = {
           applicant: 'status.html',
           mosque_admin: 'mosque-admin.html',

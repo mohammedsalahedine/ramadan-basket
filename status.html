@@ -82,17 +82,25 @@
         if (!nationalId.trim() || nationalId.length < 10) { setError('يرجى إدخال رقم هوية صحيح (10 أرقام)'); return; }
         setError('');
         setLoading(true);
-        await new Promise(r => setTimeout(r, 700));
-        setResults([
-          {
-            mosque: 'مسجد الفاروق',
-            status: ['pending', 'approved', 'received_basket'][Math.floor(Math.random() * 3)],
-            appliedDate: '٢٠٢٤-٠٣-١٠',
-            familySize: 5,
-            reviewDate: '٢٠٢٤-٠٣-١٥',
-            basketReceivedDate: '٢٠٢٤-٠٣-٢٠',
+        try {
+          const res = await fetch('/api/applications/track/' + encodeURIComponent(nationalId.trim()));
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error === 'No applications found for this National ID' ? 'لا يوجد طلب بهذا الرقم' : data.error || 'فشل البحث');
           }
-        ]);
+          const data = await res.json();
+          setResults(data.map(r => ({
+            mosque: r.mosque_name,
+            status: r.status,
+            appliedDate: r.applied_date ? new Date(r.applied_date).toLocaleDateString('ar-SA') : '—',
+            familySize: r.family_size,
+            reviewDate: r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString('ar-SA') : null,
+            basketReceivedDate: r.distribution_date ? new Date(r.distribution_date).toLocaleDateString('ar-SA') : null,
+            notes: r.admin_notes
+          })));
+        } catch (err) {
+          setError(err.message || 'فشل الاتصال بالخادم');
+        }
         setLoading(false);
       };
 

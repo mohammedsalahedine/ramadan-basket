@@ -36,13 +36,15 @@ async function seed() {
       { name: 'مسجد ابن عثيمين', address: 'الرياض، حي السليمانية', lat: 24.7035, lng: 46.6700 },
       { name: 'مسجد الحرمين', address: 'الرياض، حي الروضة', lat: 24.7340, lng: 46.6600 },
     ];
-    for (const m of mosques) {
+    for (let i = 0; i < mosques.length; i++) {
+      const m = mosques[i];
+      const existing = await pool.query('SELECT id FROM mosques WHERE name = $1', [m.name]);
+      if (existing.rows.length > 0) continue;
       await pool.query(
         `INSERT INTO mosques (name, address, latitude, longitude, admin_id)
          VALUES ($1, $2, $3, $4,
-           (SELECT id FROM users WHERE email = $5))
-         ON CONFLICT DO NOTHING`,
-        [m.name, m.address, m.lat, m.lng, `mosque${mosques.indexOf(m) + 1}@system.com`]
+           (SELECT id FROM users WHERE email = $5))`,
+        [m.name, m.address, m.lat, m.lng, `mosque${i + 1}@system.com`]
       );
     }
     console.log('Sample data inserted successfully');

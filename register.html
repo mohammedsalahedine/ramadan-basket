@@ -43,14 +43,6 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    const MOSQUES = [
-      { id: 'm1', name: 'مسجد الفاروق', address: 'الرياض، حي النزهة' },
-      { id: 'm2', name: 'مسجد الرحمن', address: 'الرياض، حي العليا' },
-      { id: 'm3', name: 'مسجد الملك سعود', address: 'الرياض، حي الملز' },
-      { id: 'm4', name: 'مسجد ابن عثيمين', address: 'الرياض، حي السليمانية' },
-      { id: 'm5', name: 'مسجد الحرمين', address: 'الرياض، حي الروضة' },
-    ];
-
     function ThemeToggle({ dark, onToggle }) {
       return (
         <button onClick={onToggle}
@@ -90,6 +82,8 @@
       const [duplicateWarning, setDuplicateWarning] = useState(null);
       const [gpsStatus, setGpsStatus] = useState(null);
       const [errors, setErrors] = useState({});
+      const [mosques, setMosques] = useState([]);
+      const [submitError, setSubmitError] = useState('');
 
       const [form, setForm] = useState({
         fullName: '', nationalId: '', phone: '', address: '',
@@ -101,6 +95,10 @@
         document.documentElement.classList.toggle('dark', dark);
         try { localStorage.setItem('rm-dark', dark); } catch {}
       }, [dark]);
+
+      useEffect(() => {
+        fetch('/api/mosques').then(r => r.json()).then(setMosques).catch(() => {});
+      }, []);
 
       const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -122,43 +120,43 @@
         if (step < 2) setStep(s => s + 1);
       };
 
-      const checkDuplicate = async () => {
-        setLoading(true);
-        await new Promise(r => setTimeout(r, 600));
-        const existing = Math.random() > 0.7;
-        if (existing) {
-          setDuplicateWarning({
-            title: 'تحذير: اشتباه في تسجيل مكرر',
-            message: 'رقم الهوية مسجل مسبقاً في مسجد آخر. الرجاء التواصل مع مشرف المسجد للمساعدة.'
-          });
-        }
-        setLoading(false);
-        return existing;
-      };
-
       const handleSubmit = async (e) => {
         e.preventDefault();
-        if (duplicateWarning) return;
-        const isDup = await checkDuplicate();
-        if (isDup) return;
+        if (duplicateWarning || !form.mosqueId) return;
         setLoading(true);
-        await new Promise(r => setTimeout(r, 1200));
+        setSubmitError('');
+        try {
+          const fd = new FormData();
+          fd.append('fullName', form.fullName);
+          fd.append('nationalId', form.nationalId);
+          fd.append('phone', form.phone);
+          fd.append('address', form.address);
+          fd.append('familySize', form.familySize);
+          fd.append('mosqueId', form.mosqueId);
+          if (form.gpsLat) fd.append('gpsLat', form.gpsLat);
+          if (form.gpsLng) fd.append('gpsLng', form.gpsLng);
+          if (form.proofDoc) fd.append('proofDocument', form.proofDoc);
+          const res = await fetch('/api/applicants/register', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!res.ok) {
+            if (data.error === 'duplicate_detected') {
+              setDuplicateWarning({ title: 'تحذير: اشتباه في تسجيل مكرر', message: `رقم الهوية مسجل مسبقاً في ${data.existingMosque || 'مسجد آخر'}. الرجاء التواصل مع مشرف المسجد للمساعدة.` });
+              return;
+            }
+            throw new Error(data.message || data.error || 'فشل التسجيل');
+          }
+          setSubmitted(true);
+        } catch (err) {
+          setSubmitError(err.message || 'فشل الاتصال بالخادم');
+        }
         setLoading(false);
-        setSubmitted(true);
       };
 
       const getGps = () => {
         setGpsStatus('جارٍ تحديد الموقع...');
-        if (!navigator.geolocation) {
-          setGpsStatus('خدمة تحديد الموقع غير متاحة');
-          return;
-        }
+        if (!navigator.geolocation) { setGpsStatus('خدمة تحديد الموقع غير متاحة'); return; }
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            update('gpsLat', pos.coords.latitude.toFixed(6));
-            update('gpsLng', pos.coords.longitude.toFixed(6));
-            setGpsStatus('تم تحديد الموقع ✓');
-          },
+          (pos) => { update('gpsLat', pos.coords.latitude.toFixed(6)); update('gpsLng', pos.coords.longitude.toFixed(6)); setGpsStatus('تم تحديد الموقع ✓'); },
           () => setGpsStatus('لم نتمكن من تحديد الموقع (اختياري)'),
           { enableHighAccuracy: true, timeout: 10000 }
         );
@@ -173,10 +171,6 @@
               </div>
               <h1 className="text-2xl font-bold mb-3">تم استلام طلبك بنجاح!</h1>
               <p className="text-[var(--muted)] mb-6">سيتم مراجعة طلبك من قبل مشرف المسجد. يمكنك متابعة حالة الطلب عبر رقم الهوية.</p>
-              <div className="glass rounded-2xl p-4 mb-6 text-right">
-                <div className="text-sm text-[var(--muted)] mb-1">رقم الطلب</div>
-                <div className="text-lg font-bold font-mono" dir="ltr">RBM-{String(Math.floor(100000 + Math.random() * 900000))}</div>
-              </div>
               <div className="flex gap-3 justify-center">
                 <a href="status.html" className="px-6 py-3 rounded-xl bg-[var(--accent)] text-white font-medium text-sm hover:opacity-90 transition-all">تتبع الطلب</a>
                 <a href="index.html" className="px-6 py-3 rounded-xl glass text-[var(--fg)] font-medium text-sm hover:bg-white/60 transition-all">العودة للرئيسية</a>
@@ -268,7 +262,8 @@
                   <h3 className="font-semibold text-lg mb-2">اختر المسجد</h3>
                   <p className="text-sm text-[var(--muted)] mb-4">اختر المسجد الأقرب إلى منطقتك لتقديم الطلب. سيتم رفض أي محاولة تسجيل في أكثر من مسجد.</p>
                   <div className="space-y-3">
-                    {MOSQUES.map(m => (
+                    {mosques.length === 0 && <p className="text-sm text-[var(--muted)]">جاري تحميل المساجد...</p>}
+                    {mosques.map(m => (
                       <label key={m.id} onClick={() => { update('mosqueId', m.id); setErrors({}); }}
                         className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
                           form.mosqueId === m.id ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 'border-[var(--border)] hover:border-[var(--accent)]/50'
@@ -300,7 +295,7 @@
                     <ReviewRow label="رقم الجوال" value={form.phone} dir="ltr" />
                     <ReviewRow label="العنوان" value={form.address} />
                     <ReviewRow label="عدد أفراد الأسرة" value={form.familySize} />
-                    <ReviewRow label="المسجد" value={MOSQUES.find(m => m.id === form.mosqueId)?.name || ''} />
+                    <ReviewRow label="المسجد" value={mosques.find(m => m.id === form.mosqueId)?.name || ''} />
                     <ReviewRow label="المستند" value={form.proofDoc ? 'تم إرفاق ملف' : 'لم يتم إرفاق'} />
                   </div>
 
@@ -314,6 +309,10 @@
                         </div>
                       </div>
                     </div>
+                  )}
+
+                  {submitError && (
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm text-center">{submitError}</div>
                   )}
 
                   <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
