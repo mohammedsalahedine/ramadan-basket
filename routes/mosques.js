@@ -25,14 +25,14 @@ router.get('/', async (req, res) => {
 
 router.post('/', authenticate, authorize('super_admin'), async (req, res) => {
   try {
-    const { name, address, latitude, longitude, serviceAreaRadiusKm } = req.body;
+    const { name, address, latitude, longitude, serviceAreaRadiusKm, adminId } = req.body;
     if (!name || !address) {
       return res.status(400).json({ error: 'Name and address are required' });
     }
     const result = await query(
-      `INSERT INTO mosques (name, address, latitude, longitude, service_area_radius_km)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [name, address, latitude || null, longitude || null, serviceAreaRadiusKm || 5.0]
+      `INSERT INTO mosques (name, address, latitude, longitude, service_area_radius_km, admin_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [name, address, latitude || null, longitude || null, serviceAreaRadiusKm || 5.0, adminId || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

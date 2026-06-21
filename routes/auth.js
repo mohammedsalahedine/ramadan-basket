@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../db');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -54,6 +54,18 @@ router.get('/me', authenticate, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Get user error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/mosque-admins', authenticate, authorize('super_admin'), async (req, res) => {
+  try {
+    const result = await query(
+      "SELECT id, full_name as fullname, email FROM users WHERE role = 'mosque_admin' AND is_active = true ORDER BY full_name"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get mosque admins error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
