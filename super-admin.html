@@ -74,6 +74,9 @@
       const [duplicates, setDuplicates] = useState([]);
       const [auditLog, setAuditLog] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [toast, setToast] = useState(null);
+
+      const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
       const token = (() => { try { return localStorage.getItem('rm-token'); } catch { return null; } })();
       const user = (() => { try { return JSON.parse(localStorage.getItem('rm-user') || '{}'); } catch { return {}; } })();
@@ -120,20 +123,26 @@
       };
 
       const downloadReport = async (type, format) => {
+        if (!token) { showToast('يجب تسجيل الدخول أولاً'); return; }
         try {
           const url = '/api/dashboard/reports/' + type + '/download?format=' + format + '&token=' + token;
           if (format === 'html') {
-            window.open(url, '_blank');
+            const w = window.open(url, '_blank');
+            if (!w) showToast('الرجاء السماح للنوافذ المنبثقة');
           } else {
             const res = await fetch(url);
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'فشل التحميل'); }
             const blob = await res.blob();
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'report-' + type + '.xlsx';
+            a.download = 'تقرير-' + type + '.xlsx';
             a.click();
             URL.revokeObjectURL(a.href);
+            showToast('تم تحميل التقرير');
           }
-        } catch {}
+        } catch (err) {
+          showToast(err.message || 'فشل تحميل التقرير');
+        }
       };
 
       const TABS = [
@@ -147,6 +156,7 @@
       const STATUS_LABELS = { pending: 'قيد الانتظار', approved: 'تمت الموافقة', rejected: 'مرفوض', received_basket: 'تم الاستلام' };
 
       return (
+        <>
         <div className="min-h-screen flex flex-col relative z-10">
           <header className="glass sticky top-0 z-40 backdrop-blur-xl border-b border-white/20 dark:border-white/5">
             <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -370,6 +380,13 @@
             )}
           </div>
         </div>
+
+          {toast && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl glass-strong text-sm font-medium shadow-2xl fade-in">
+              {toast}
+            </div>
+          )}
+      </>
       );
     }
 

@@ -84,6 +84,7 @@
       const [errors, setErrors] = useState({});
       const [mosques, setMosques] = useState([]);
       const [submitError, setSubmitError] = useState('');
+      const [mosquesLoaded, setMosquesLoaded] = useState(false);
 
       const [form, setForm] = useState({
         fullName: '', nationalId: '', phone: '', address: '',
@@ -97,7 +98,9 @@
       }, [dark]);
 
       useEffect(() => {
-        fetch('/api/mosques').then(r => r.json()).then(setMosques).catch(() => {});
+        Promise.all([
+          fetch('/api/mosques').then(r => r.json()),
+        ]).then(([data]) => { if (Array.isArray(data)) setMosques(data); setMosquesLoaded(true); }).catch(() => { setMosquesLoaded(true); });
       }, []);
 
       const update = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -262,7 +265,8 @@
                   <h3 className="font-semibold text-lg mb-2">اختر المسجد</h3>
                   <p className="text-sm text-[var(--muted)] mb-4">اختر المسجد الأقرب إلى منطقتك لتقديم الطلب. سيتم رفض أي محاولة تسجيل في أكثر من مسجد.</p>
                   <div className="space-y-3">
-                    {mosques.length === 0 && <p className="text-sm text-[var(--muted)]">جاري تحميل المساجد...</p>}
+                    {!mosquesLoaded && <p className="text-sm text-[var(--muted)]">جاري تحميل المساجد...</p>}
+                    {mosquesLoaded && mosques.length === 0 && <p className="text-sm text-amber-600 dark:text-amber-400">لا توجد مساجد متاحة حالياً. يرجى المحاولة لاحقاً.</p>}
                     {mosques.map(m => (
                       <label key={m.id} onClick={() => { update('mosqueId', m.id); setErrors({}); }}
                         className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
