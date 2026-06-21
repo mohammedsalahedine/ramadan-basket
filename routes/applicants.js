@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { query } = require('../db');
 const { authenticate, authorize, audit } = require('../middleware/auth');
 
@@ -145,6 +146,33 @@ router.get('/duplicates', authenticate, authorize('super_admin'), async (req, re
     res.json(result.rows);
   } catch (err) {
     console.error('Duplicates error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Serve applicant document file
+router.get('/:id/document', authenticate, authorize('mosque_admin', 'super_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query('SELECT proof_document_path FROM applicants WHERE id = $1', [id]);
+    if (result.rows.length === 0 || !result.rows[0].proof_document_path) {
+      return res.status(404).json({ error: 'No document found' });
+    }
+    const relPath = result.rows[0].proof_document_path;
+    const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
+    const filename = path.basename(relPath);
+    const filePath = path.join(uploadDir, filename);
+
+    // Try exact path first, then try without extension (for backward compat)
+    let finalPath = filePath;
+    if (!fs.existsSync(finalPath)) {
+      const extless = path.join(uploadDir, path.parse(filename).name);
+      if (fs.existsSync(extless)) finalPath = extless;
+      else return res.status(404).json({ error: 'File not found on disk' });
+    }
+    res.sendFile(finalPath);
+  } catch (err) {
+    console.error('Serve document error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

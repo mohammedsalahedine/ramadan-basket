@@ -128,7 +128,7 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <div className="space-y-3 text-sm">
+              <div className="space-y-3 text-sm">
               <Row label="الاسم" value={app.name} />
               <Row label="رقم الهوية" value={app.nationalId} dir="ltr" />
               <Row label="الجوال" value={app.phone} dir="ltr" />
@@ -136,8 +136,8 @@
               <Row label="عدد أفراد الأسرة" value={app.familySize} />
               <Row label="تاريخ التقديم" value={app.appliedDate} />
               <Row label="المستندات" value={
-                app.proofDoc
-                  ? <a href={app.proofDoc} target="_blank" rel="noopener noreferrer"
+                app.proofDoc && app.applicantId
+                  ? <a href={'/api/applicants/' + app.applicantId + '/document'} target="_blank" rel="noopener noreferrer"
                        className="inline-flex items-center gap-1 text-[var(--accent)] hover:underline"
                        onClick={e => e.stopPropagation()}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -190,25 +190,32 @@
         try { localStorage.setItem('rm-dark', dark); } catch {}
       }, [dark]);
 
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 5000);
+      };
+
       const fetchData = () => {
         setLoading(true);
         Promise.all([
-          fetch('/api/applications', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json()),
-          fetch('/api/dashboard/stats', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json())
+          fetch('/api/applications', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => { if (!r.ok) throw new Error('فشل تحميل المتقدمين'); return r.json(); }),
+          fetch('/api/dashboard/stats', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => { if (!r.ok) throw new Error('فشل تحميل الإحصائيات'); return r.json(); })
         ]).then(([apps, stats]) => {
           if (Array.isArray(apps)) {
             setApplicants(apps.map(a => ({
               id: a.id, name: a.full_name, nationalId: a.national_id, phone: a.phone,
               familySize: a.family_size, address: a.address, status: a.status,
               appliedDate: a.created_at ? new Date(a.created_at).toLocaleDateString('ar-SA') : '—',
-              proofDoc: a.proof_document_path, reviewedNotes: a.admin_notes
+              proofDoc: a.proof_document_path, applicantId: a.applicant_id, reviewedNotes: a.admin_notes
             })));
             if (apps.length > 0) setMosqueName(apps[0].mosque_name || 'المسجد');
           }
           if (stats && stats.total_applicants !== undefined) {
             setStatsData({ total: stats.total_applicants, pending: stats.pending_count, approved: stats.approved_count, received: stats.baskets_distributed });
           }
-        }).catch(() => {}).finally(() => setLoading(false));
+        }).catch((err) => {
+          showToast(err.message || 'تعذر الاتصال بالخادم');
+        }).finally(() => setLoading(false));
       };
 
       useEffect(() => { fetchData(); }, []);
@@ -239,11 +246,6 @@
           showToast('فشل: ' + err.message);
         }
         setLoading(false);
-      };
-
-      const showToast = (msg) => {
-        setToast(msg);
-        setTimeout(() => setToast(null), 3000);
       };
 
       return (
