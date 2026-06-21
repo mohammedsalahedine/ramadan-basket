@@ -151,6 +151,7 @@
             const r = data[0];
             setSearchResult({
               name: r.full_name, nationalId: r.national_id, phone: r.phone,
+              proofDocumentPath: r.proof_document_path,
               status: r.status, mosque: r.mosque_name, date: r.applied_date ? new Date(r.applied_date).toLocaleDateString('ar-SA') : '—'
             });
           } else {
@@ -272,6 +273,16 @@
                         <div className="flex justify-between"><span className="text-[var(--muted)]">الجوال</span><span className="font-medium" dir="ltr">{searchResult.phone}</span></div>
                         <div className="flex justify-between"><span className="text-[var(--muted)]">المسجد</span><span className="font-medium">{searchResult.mosque}</span></div>
                         <div className="flex justify-between"><span className="text-[var(--muted)]">الحالة</span><span className="px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs font-medium">{STATUS_LABELS[searchResult.status] || searchResult.status}</span></div>
+                        {searchResult.proofDocumentPath && (
+                          <div className="flex justify-between items-center pt-1 border-t border-white/20 dark:border-white/5 mt-1">
+                            <span className="text-[var(--muted)]">المستندات</span>
+                            <a href={searchResult.proofDocumentPath} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--accent)] text-white text-xs font-medium hover:opacity-90 transition-all">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                              عرض المستند
+                            </a>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
