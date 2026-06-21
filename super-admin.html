@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>نظام إدارة سلال رمضان — لوحة المدير العام</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { brand: { 50: '#f0faf5', 500: '#2d9f6e', 600: '#238258' } },       fontFamily: { arabic: ['"Amiri"', '"Noto Sans Arabic"', 'Tahoma', 'system-ui', 'sans-serif'], display: ['"Amiri"', 'Georgia', 'serif'] } } }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: oklch(98% 0.004 240); --surface: oklch(100% 0 0); --fg: oklch(20% 0.02 240); --muted: oklch(50% 0.018 240); --border: oklch(90% 0.006 240); --accent: oklch(56% 0.12 170); }
+    .dark { --bg: #0f0f0f; --surface: #1a1a1a; --fg: #f0f0f0; --muted: #888; --border: #2a2a2a; }
+    body { font-family: 'Amiri', 'Noto Sans Arabic', Tahoma, system-ui, sans-serif; }
+    h1, h2, h3, .font-arabic { font-family: 'Amiri', 'Noto Sans Arabic', Georgia, serif; }
+    .bg-mosque-fixed { background-image: url('mosque-bg.jpg'); background-size: 110% auto; background-position: center; background-repeat: no-repeat; background-attachment: fixed; animation: kenBurns 20s ease-in-out infinite alternate; }
+    .bg-mosque-fixed::before { content: ''; position: fixed; inset: 0; background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.55) 100%); z-index: 0; }
+    @keyframes kenBurns { 0% { background-size: 110% auto; background-position: center; } 100% { background-size: 130% auto; background-position: 60% 50%; } }
+    .glass { background: rgba(255,255,255,0.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2); }
+    .dark .glass { background: rgba(15,15,15,0.55); border-color: rgba(255,255,255,0.08); }
+    .glass-strong { background: rgba(255,255,255,0.8); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.25); }
+    .dark .glass-strong { background: rgba(15,15,15,0.7); border-color: rgba(255,255,255,0.08); }
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    .text-shadow-lg { text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .scroll-hide::-webkit-scrollbar { display: none; }
+    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-mosque-fixed text-[var(--fg)] min-h-screen transition-colors duration-300 relative">
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const MOSQUES = [
+      { id: 1, name: 'مسجد الفاروق', address: 'الرياض، حي النزهة', admin: 'أحمد الفاروق', applicants: 42, approved: 28, baskets: 15 },
+      { id: 2, name: 'مسجد الرحمن', address: 'الرياض، حي العليا', admin: 'عمر الرحمن', applicants: 38, approved: 22, baskets: 10 },
+      { id: 3, name: 'مسجد الملك سعود', address: 'الرياض، حي الملز', admin: 'خالد السعود', applicants: 51, approved: 35, baskets: 20 },
+      { id: 4, name: 'مسجد ابن عثيمين', address: 'الرياض، حي السليمانية', admin: '—', applicants: 29, approved: 18, baskets: 8 },
+      { id: 5, name: 'مسجد الحرمين', address: 'الرياض، حي الروضة', admin: 'نايف الحرمين', applicants: 33, approved: 25, baskets: 12 },
+    ];
+
+    const DUPLICATE_ATTEMPTS = [
+      { id: 1, nationalId: '1048203912', name: 'محمد عبدالله أحمد', phone: '0555123456', attemptedMosque: 'مسجد الرحمن', existingIn: 'مسجد الفاروق', date: '٢٠٢٤-٠٣-١٥', ip: '192.168.1.1' },
+      { id: 2, nationalId: '1076512345', name: 'سارة خالد العتيبي', phone: '0555987654', attemptedMosque: 'مسجد الملك سعود', existingIn: 'مسجد الفاروق', date: '٢٠٢٤-٠٣-١٤', ip: '192.168.1.2' },
+      { id: 3, nationalId: '1098765432', name: 'فهد سعد القحطاني', phone: '0555112233', attemptedMosque: 'مسجد الحرمين', existingIn: 'مسجد الفاروق', date: '٢٠٢٤-٠٣-١٣', ip: '192.168.1.3' },
+    ];
+
+    const AUDIT_LOG = [
+      { id: 1, user: 'أحمد الفاروق', action: 'قبول طلب', entity: 'محمد عبدالله', date: '٢٠٢٤-٠٣-١٥ ١٠:٣٠ ص' },
+      { id: 2, user: 'عمر الرحمن', action: 'تسليم سلة', entity: 'سارة العتيبي', date: '٢٠٢٤-٠٣-١٥ ٠٩:١٥ ص' },
+      { id: 3, user: 'النظام', action: 'محاولة تسجيل مكرر', entity: 'رقم هوية ١٠٤٨٢٠٣٩١٢', date: '٢٠٢٤-٠٣-١٤ ١١:٠٠ ص' },
+      { id: 4, user: 'خالد السعود', action: 'رفض طلب', entity: 'فهد القحطاني', date: '٢٠٢٤-٠٣-١٤ ٠٨:٤٥ ص' },
+      { id: 5, user: 'أحمد الفاروق', action: 'تسجيل مستفيد جديد', entity: 'نورة الدوسري', date: '٢٠٢٤-٠٣-١٣ ٠٢:٠٠ م' },
+    ];
+
+    function ThemeToggle({ dark, onToggle }) {
+      return (
+        <button onClick={onToggle}
+          className="w-10 h-10 rounded-xl glass flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg">
+          {dark ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          )}
+        </button>
+      );
+    }
+
+    function StatCard({ label, value, sub, color }) {
+      return (
+        <div className="glass rounded-xl p-4">
+          <div className="text-sm text-[var(--muted)] mb-1">{label}</div>
+          <div className={`text-2xl font-bold ${color || 'text-[var(--fg)]'}`}>{value}</div>
+          {sub && <div className="text-xs text-[var(--muted)] mt-0.5">{sub}</div>}
+        </div>
+      );
+    }
+
+    function SuperAdminPage() {
+      const [dark, setDark] = useState(() => { try { return localStorage.getItem('rm-dark') === 'true'; } catch { return false; } });
+      const [activeTab, setActiveTab] = useState('overview');
+      const [searchId, setSearchId] = useState('');
+      const [searchResult, setSearchResult] = useState(null);
+
+      useEffect(() => {
+        document.documentElement.classList.toggle('dark', dark);
+        try { localStorage.setItem('rm-dark', dark); } catch {}
+      }, [dark]);
+
+      const totals = useMemo(() => ({
+        totalApplicants: MOSQUES.reduce((s, m) => s + m.applicants, 0),
+        totalApproved: MOSQUES.reduce((s, m) => s + m.approved, 0),
+        totalBaskets: MOSQUES.reduce((s, m) => s + m.baskets, 0),
+        duplicateCount: DUPLICATE_ATTEMPTS.length,
+        mosqueCount: MOSQUES.length,
+      }), []);
+
+      const handleSearch = () => {
+        if (!searchId.trim() || searchId.length < 10) return;
+        setSearchResult({
+          name: 'محمد عبدالله أحمد',
+          nationalId: searchId,
+          phone: '0555123456',
+          status: 'approved',
+          mosque: 'مسجد الفاروق',
+          date: '٢٠٢٤-٠٣-١٠',
+        });
+      };
+
+      const TABS = [
+        { key: 'overview', label: 'نظرة عامة' },
+        { key: 'mosques', label: 'المساجد' },
+        { key: 'duplicates', label: 'المحاولات المكررة' },
+        { key: 'audit', label: 'سجل التدقيق' },
+        { key: 'reports', label: 'التقارير' },
+      ];
+
+      return (
+        <div className="min-h-screen flex flex-col relative z-10">
+          <header className="glass sticky top-0 z-40 backdrop-blur-xl border-b border-white/20 dark:border-white/5">
+            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <a href="index.html" className="text-white/70 hover:text-white transition-colors">&larr;</a>
+                <div>
+                  <h1 className="font-semibold text-white drop-shadow-md">لوحة المدير العام</h1>
+                  <p className="text-xs text-white/60">نظام إدارة سلال رمضان</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-white/60">المدير: مشرف النظام</span>
+                <ThemeToggle dark={dark} onToggle={() => setDark(d => !d)} />
+              </div>
+            </div>
+          </header>
+
+          <div className="glass border-b border-white/20 dark:border-white/5 backdrop-blur-md">
+            <div className="max-w-6xl mx-auto px-4 flex gap-1 overflow-x-auto scroll-hide">
+              {TABS.map(t => (
+                <button key={t.key} onClick={() => setActiveTab(t.key)}
+                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-all shrink-0 ${
+                    activeTab === t.key ? 'border-[var(--accent)] text-white' : 'border-transparent text-white/60 hover:text-white'
+                  }`}>{t.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="max-w-6xl mx-auto w-full px-4 py-6 fade-in">
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <StatCard label="إجمالي المساجد" value={totals.mosqueCount} color="text-[var(--accent)]" sub={`${MOSQUES.filter(m => m.admin !== '—').length} نشط`} />
+                  <StatCard label="إجمالي المتقدمين" value={totals.totalApplicants} />
+                  <StatCard label="تمت الموافقة" value={totals.totalApproved} color="text-green-600 dark:text-green-400" sub={`${Math.round(totals.totalApproved / totals.totalApplicants * 100)}%`} />
+                  <StatCard label="سلال موزعة" value={totals.totalBaskets} color="text-blue-600 dark:text-blue-400" />
+                  <StatCard label="محاولات مكررة" value={totals.duplicateCount} color="text-amber-600 dark:text-amber-400" sub="تم منعها" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="glass rounded-xl p-4">
+                    <h3 className="font-semibold mb-3 text-sm">أداء المساجد</h3>
+                    <div className="space-y-2">
+                      {MOSQUES.map(m => {
+                        const pct = m.applicants > 0 ? Math.round(m.baskets / m.applicants * 100) : 0;
+                        return (
+                          <div key={m.id} className="flex items-center gap-3 py-2 border-b border-white/20 dark:border-white/5 last:border-0">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{m.name}</div>
+                              <div className="text-xs text-white/70">{m.approved} موافقة · {m.baskets} سلة</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-bold">{pct}%</div>
+                              <div className="w-16 h-1.5 rounded-full bg-white/30 mt-1 overflow-hidden">
+                                <div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="glass rounded-xl p-4">
+                    <h3 className="font-semibold mb-3 text-sm">بحث عن عائلة</h3>
+                    <div className="flex gap-2 mb-3">
+                      <input type="text" value={searchId} onChange={e => setSearchId(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        className="flex-1 px-3 py-2 rounded-lg bg-white/50 dark:bg-white/5 border border-white/30 dark:border-white/10 text-sm text-[var(--fg)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                        placeholder="رقم الهوية الوطنية" dir="ltr" maxLength={10} />
+                      <button onClick={handleSearch}
+                        className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-all">بحث</button>
+                    </div>
+                    {searchResult && (
+                      <div className="glass rounded-lg p-3 text-sm space-y-1.5">
+                        <div className="flex justify-between"><span className="text-[var(--muted)]">الاسم</span><span className="font-medium">{searchResult.name}</span></div>
+                        <div className="flex justify-between"><span className="text-[var(--muted)]">رقم الهوية</span><span className="font-medium font-mono" dir="ltr">{searchResult.nationalId}</span></div>
+                        <div className="flex justify-between"><span className="text-[var(--muted)]">الجوال</span><span className="font-medium" dir="ltr">{searchResult.phone}</span></div>
+                        <div className="flex justify-between"><span className="text-[var(--muted)]">المسجد</span><span className="font-medium">{searchResult.mosque}</span></div>
+                        <div className="flex justify-between"><span className="text-[var(--muted)]">الحالة</span><span className="px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs font-medium">تمت الموافقة</span></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="glass rounded-xl p-4">
+                  <h3 className="font-semibold mb-3 text-sm">آخر النشاطات</h3>
+                  <div className="space-y-1">
+                    {AUDIT_LOG.slice(0, 4).map(log => (
+                      <div key={log.id} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0 text-sm">
+                        <div className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0" />
+                        <div className="flex-1">
+                          <span className="font-medium">{log.user}</span>
+                          <span className="text-[var(--muted)]"> — {log.action}: </span>
+                          <span>{log.entity}</span>
+                        </div>
+                        <div className="text-xs text-[var(--muted)] shrink-0">{log.date}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'mosques' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">إدارة المساجد</h3>
+                  <button className="px-4 py-2 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-all">+ إضافة مسجد</button>
+                </div>
+                <div className="overflow-x-auto scroll-hide">
+                  <table className="w-full text-sm glass rounded-xl">
+                    <thead>
+                      <tr className="border-b border-white/20 dark:border-white/5 bg-white/30 dark:bg-white/5">
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">المسجد</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">المشرف</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">المتقدمون</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">الموافقات</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">السلال</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">الإجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {MOSQUES.map(m => (
+                        <tr key={m.id} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5 transition-colors">
+                          <td className="py-3 px-3">
+                            <div className="font-medium">{m.name}</div>
+                            <div className="text-xs text-[var(--muted)]">{m.address}</div>
+                          </td>
+                          <td className="py-3 px-3 text-sm">{m.admin}</td>
+                          <td className="py-3 px-3 text-sm">{m.applicants}</td>
+                          <td className="py-3 px-3 text-sm text-green-600 dark:text-green-400 font-medium">{m.approved}</td>
+                          <td className="py-3 px-3 text-sm text-blue-600 dark:text-blue-400 font-medium">{m.baskets}</td>
+                          <td className="py-3 px-3">
+                            <button className="text-xs text-[var(--accent)] hover:underline font-medium">تعديل</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'duplicates' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">محاولات التسجيل المكرر</h3>
+                  <span className="text-xs text-[var(--muted)]">إجمالي {DUPLICATE_ATTEMPTS.length} محاولة</span>
+                </div>
+                <div className="overflow-x-auto scroll-hide">
+                  <table className="w-full text-sm glass rounded-xl">
+                    <thead>
+                      <tr className="border-b border-white/20 dark:border-white/5 bg-white/30 dark:bg-white/5">
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">رقم الهوية</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">الاسم</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">حاول في</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">مسجل في</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">التاريخ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {DUPLICATE_ATTEMPTS.map(d => (
+                        <tr key={d.id} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5">
+                          <td className="py-3 px-3 font-mono text-xs" dir="ltr">{d.nationalId}</td>
+                          <td className="py-3 px-3 text-sm">{d.name}</td>
+                          <td className="py-3 px-3 text-sm text-red-600">{d.attemptedMosque}</td>
+                          <td className="py-3 px-3 text-sm text-green-600">{d.existingIn}</td>
+                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{d.date}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button className="px-4 py-2 rounded-xl glass text-sm text-white/80 hover:text-white transition-all">تصدير التقرير (Excel)</button>
+              </div>
+            )}
+
+            {activeTab === 'audit' && (
+              <div className="space-y-3">
+                <h3 className="font-semibold mb-2">سجل التدقيق</h3>
+                <div className="overflow-x-auto scroll-hide">
+                  <table className="w-full text-sm glass rounded-xl">
+                    <thead>
+                      <tr className="border-b border-white/20 dark:border-white/5 bg-white/30 dark:bg-white/5">
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">المستخدم</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">الإجراء</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">المتعلق</th>
+                        <th className="text-right py-3 px-3 font-medium text-[var(--muted)] text-xs">التاريخ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {AUDIT_LOG.map(log => (
+                        <tr key={log.id} className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5">
+                          <td className="py-3 px-3 text-sm font-medium">{log.user}</td>
+                          <td className="py-3 px-3 text-sm">{log.action}</td>
+                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{log.entity}</td>
+                          <td className="py-3 px-3 text-sm text-[var(--muted)]">{log.date}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button className="px-4 py-2 rounded-xl glass text-sm text-white/80 hover:text-white transition-all">تصدير السجل (PDF)</button>
+              </div>
+            )}
+
+            {activeTab === 'reports' && (
+              <div className="space-y-4">
+                <h3 className="font-semibold mb-2">التقارير</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[
+                    { title: 'تقرير التوزيع', desc: 'إجمالي السلال الموزعة لكل مسجد', icon: '📊' },
+                    { title: 'تقرير المكررين', desc: 'قائمة محاولات التسجيل المكرر', icon: '🚫' },
+                    { title: 'تقرير الأسرة', desc: 'قائمة جميع العائلات المسجلة', icon: '👨‍👩‍👧‍👦' },
+                  ].map((r, i) => (
+                    <div key={i} className="glass rounded-xl p-4 hover:shadow-xl transition-all cursor-pointer">
+                      <div className="text-2xl mb-2">{r.icon}</div>
+                      <h4 className="font-medium text-sm">{r.title}</h4>
+                      <p className="text-xs text-[var(--muted)] mt-1">{r.desc}</p>
+                      <div className="flex gap-2 mt-3">
+                        <button className="px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white text-xs font-medium hover:opacity-90 transition-all">Excel</button>
+                        <button className="px-3 py-1.5 rounded-lg glass text-xs font-medium hover:bg-white/40 transition-all">PDF</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(SuperAdminPage));
+  </script>
+</body>
+</html>

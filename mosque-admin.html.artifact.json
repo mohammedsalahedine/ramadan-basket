@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "mosque-admin.html",
+  "entry": "mosque-admin.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-20T14:16:46.584Z",
+  "updatedAt": "2026-06-20T14:16:46.584Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

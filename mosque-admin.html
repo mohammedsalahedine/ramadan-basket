@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>نظام إدارة سلال رمضان — لوحة مشرف المسجد</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { brand: { 50: '#f0faf5', 500: '#2d9f6e', 600: '#238258' } },       fontFamily: { arabic: ['"Amiri"', '"Noto Sans Arabic"', 'Tahoma', 'system-ui', 'sans-serif'], display: ['"Amiri"', 'Georgia', 'serif'] } } }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: oklch(98% 0.004 240); --surface: oklch(100% 0 0); --fg: oklch(20% 0.02 240); --muted: oklch(50% 0.018 240); --border: oklch(90% 0.006 240); --accent: oklch(56% 0.12 170); }
+    .dark { --bg: #0f0f0f; --surface: #1a1a1a; --fg: #f0f0f0; --muted: #888; --border: #2a2a2a; }
+    body { font-family: 'Amiri', 'Noto Sans Arabic', Tahoma, system-ui, sans-serif; }
+    h1, h2, h3, .font-arabic { font-family: 'Amiri', 'Noto Sans Arabic', Georgia, serif; }
+    .bg-mosque-fixed { background-image: url('mosque-bg.jpg'); background-size: 110% auto; background-position: center; background-repeat: no-repeat; background-attachment: fixed; animation: kenBurns 20s ease-in-out infinite alternate; }
+    .bg-mosque-fixed::before { content: ''; position: fixed; inset: 0; background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.55) 100%); z-index: 0; }
+    @keyframes kenBurns { 0% { background-size: 110% auto; background-position: center; } 100% { background-size: 130% auto; background-position: 60% 50%; } }
+    .glass { background: rgba(255,255,255,0.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2); }
+    .dark .glass { background: rgba(15,15,15,0.55); border-color: rgba(255,255,255,0.08); }
+    .glass-strong { background: rgba(255,255,255,0.8); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.25); }
+    .dark .glass-strong { background: rgba(15,15,15,0.7); border-color: rgba(255,255,255,0.08); }
+    .glass-table { background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .dark .glass-table { background: rgba(15,15,15,0.7); }
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    .text-shadow-lg { text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .scroll-hide::-webkit-scrollbar { display: none; }
+    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-mosque-fixed text-[var(--fg)] min-h-screen transition-colors duration-300 relative">
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const MOCK_APPLICANTS = [
+      { id: 1, name: 'محمد عبدالله أحمد', nationalId: '1048203912', phone: '0555123456', familySize: 6, address: 'الرياض، حي النزهة', status: 'pending', appliedDate: '٢٠٢٤-٠٣-١٠', docs: true },
+      { id: 2, name: 'سارة خالد العتيبي', nationalId: '1076512345', phone: '0555987654', familySize: 4, address: 'الرياض، حي النزهة', status: 'approved', appliedDate: '٢٠٢٤-٠٣-٠٨', docs: true, reviewedNotes: 'تم التحقق من المستندات' },
+      { id: 3, name: 'فهد سعد القحطاني', nationalId: '1098765432', phone: '0555112233', familySize: 8, address: 'الرياض، حي النزهة', status: 'pending', appliedDate: '٢٠٢٤-٠٣-١٢', docs: false },
+      { id: 4, name: 'نورة عبدالرحمن الدوسري', nationalId: '1044556677', phone: '0555778899', familySize: 3, address: 'الرياض، حي الفاروق', status: 'received_basket', appliedDate: '٢٠٢٤-٠٣-٠٥', docs: true, basketDate: '٢٠٢٤-٠٣-١٨' },
+      { id: 5, name: 'عبدالله إبراهيم المطيري', nationalId: '1088123456', phone: '0555443322', familySize: 7, address: 'الرياض، حي النزهة', status: 'rejected', appliedDate: '٢٠٢٤-٠٣-٠٧', docs: true, reviewedNotes: 'مستندات غير مكتملة' },
+      { id: 6, name: 'مريم حسن الزهراني', nationalId: '1066543210', phone: '0555667788', familySize: 5, address: 'الرياض، حي الوادي', status: 'pending', appliedDate: '٢٠٢٤-٠٣-١٤', docs: true },
+    ];
+
+    const STATUS_STYLES = {
+      pending:         { dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', label: 'قيد الانتظار' },
+      approved:        { dot: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300', label: 'تمت الموافقة' },
+      rejected:        { dot: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300', label: 'مرفوض' },
+      received_basket: { dot: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', label: 'تم الاستلام' },
+    };
+
+    function ThemeToggle({ dark, onToggle }) {
+      return (
+        <button onClick={onToggle}
+          className="w-10 h-10 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--fg)] transition-all">
+          {dark ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          )}
+        </button>
+      );
+    }
+
+    function StatCard({ label, value, color, icon }) {
+      return (
+        <div className="glass rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center shrink-0`}>
+              <span dangerouslySetInnerHTML={{ __html: icon }} />
+            </div>
+            <div>
+              <div className="text-sm text-[var(--muted)]">{label}</div>
+              <div className="text-2xl font-bold">{value}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ApplicantRow({ app, onAction }) {
+      const s = STATUS_STYLES[app.status];
+      return (
+        <tr className="border-b border-white/20 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/5 transition-colors">
+          <td className="py-3 px-2">
+            <div className="font-medium text-sm">{app.name}</div>
+            <div className="text-xs text-[var(--muted)]" dir="ltr">{app.nationalId}</div>
+          </td>
+          <td className="py-3 px-2 text-sm">{app.phone}</td>
+          <td className="py-3 px-2 text-sm">{app.familySize}</td>
+          <td className="py-3 px-2 text-sm">{app.appliedDate}</td>
+          <td className="py-3 px-2">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+              {s.label}
+            </span>
+          </td>
+          <td className="py-3 px-2">
+            <div className="flex gap-1">
+              {app.status === 'pending' && (
+                <>
+                  <button onClick={() => onAction(app.id, 'approved')}
+                    className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-all">قبول</button>
+                  <button onClick={() => onAction(app.id, 'rejected')}
+                    className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-all">رفض</button>
+                </>
+              )}
+              {app.status === 'approved' && (
+                <button onClick={() => onAction(app.id, 'received_basket')}
+                  className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-all">تسليم السلة</button>
+              )}
+            </div>
+          </td>
+        </tr>
+      );
+    }
+
+    function DetailModal({ app, onClose, onAction }) {
+      if (!app) return null;
+      const s = STATUS_STYLES[app.status];
+      return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={onClose}>
+          <div className="glass-strong rounded-2xl shadow-2xl max-w-lg w-full p-6 fade-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">تفاصيل المتقدم</h3>
+              <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--fg)]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <Row label="الاسم" value={app.name} />
+              <Row label="رقم الهوية" value={app.nationalId} dir="ltr" />
+              <Row label="الجوال" value={app.phone} dir="ltr" />
+              <Row label="العنوان" value={app.address} />
+              <Row label="عدد أفراد الأسرة" value={app.familySize} />
+              <Row label="تاريخ التقديم" value={app.appliedDate} />
+              <Row label="المستندات" value={app.docs ? 'مرفقة ✓' : 'غير مرفقة'} />
+              <Row label="الحالة" value={<span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text}`}><span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />{s.label}</span>} />
+              {app.reviewedNotes && <Row label="ملاحظات" value={app.reviewedNotes} />}
+            </div>
+            <div className="flex gap-2 mt-6 pt-4 border-t border-[var(--border)]">
+              {app.status === 'pending' && (<>
+                <button onClick={() => { onAction(app.id, 'approved'); onClose(); }} className="flex-1 py-2.5 rounded-xl bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-all">قبول الطلب</button>
+                <button onClick={() => { onAction(app.id, 'rejected'); onClose(); }} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-all">رفض الطلب</button>
+              </>)}
+              {app.status === 'approved' && (
+                <button onClick={() => { onAction(app.id, 'received_basket'); onClose(); }} className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-all">تأكيد استلام السلة</button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Row({ label, value, dir }) {
+      return (
+        <div className="flex justify-between items-center py-2 border-b border-[var(--border)] last:border-0">
+          <span className="text-[var(--muted)]">{label}</span>
+          <span className="font-medium" dir={dir}>{value}</span>
+        </div>
+      );
+    }
+
+    function MosqueAdminPage() {
+      const [dark, setDark] = useState(() => { try { return localStorage.getItem('rm-dark') === 'true'; } catch { return false; } });
+      const [applicants, setApplicants] = useState(MOCK_APPLICANTS);
+      const [filter, setFilter] = useState('all');
+      const [search, setSearch] = useState('');
+      const [selectedApp, setSelectedApp] = useState(null);
+      const [toast, setToast] = useState(null);
+
+      useEffect(() => {
+        document.documentElement.classList.toggle('dark', dark);
+        try { localStorage.setItem('rm-dark', dark); } catch {}
+      }, [dark]);
+
+      const filtered = useMemo(() => {
+        let list = applicants;
+        if (filter !== 'all') list = list.filter(a => a.status === filter);
+        if (search.trim()) {
+          const q = search.trim();
+          list = list.filter(a => a.name.includes(q) || a.nationalId.includes(q) || a.phone.includes(q));
+        }
+        return list;
+      }, [applicants, filter, search]);
+
+      const handleAction = (id, newStatus) => {
+        setApplicants(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+        const labels = { approved: 'تم قبول الطلب', rejected: 'تم رفض الطلب', received_basket: 'تم تأكيد استلام السلة' };
+        showToast(labels[newStatus] || 'تم التحديث');
+      };
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3000);
+      };
+
+      const stats = useMemo(() => ({
+        total: applicants.length,
+        pending: applicants.filter(a => a.status === 'pending').length,
+        approved: applicants.filter(a => a.status === 'approved').length,
+        received: applicants.filter(a => a.status === 'received_basket').length,
+      }), [applicants]);
+
+      return (
+        <div className="min-h-screen flex flex-col relative z-10">
+          <header className="glass sticky top-0 z-40 backdrop-blur-xl border-b border-white/20 dark:border-white/5">
+            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <a href="index.html" className="text-white/70 hover:text-white transition-colors">&larr;</a>
+                <div>
+                  <h1 className="font-semibold text-white drop-shadow-md">مسجد الفاروق</h1>
+                  <p className="text-xs text-white/60">لوحة مشرف المسجد</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-white/60">مشرف: أحمد الفاروق</span>
+                <ThemeToggle dark={dark} onToggle={() => setDark(d => !d)} />
+              </div>
+            </div>
+          </header>
+
+          <div className="max-w-6xl mx-auto w-full px-4 py-6 fade-in">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <StatCard label="إجمالي المتقدمين" value={stats.total} color="bg-[var(--accent)]/10 text-[var(--accent)]" icon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' />
+              <StatCard label="قيد الانتظار" value={stats.pending} color="bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" icon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' />
+              <StatCard label="تمت الموافقة" value={stats.approved} color="bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400" icon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' />
+              <StatCard label="استلموا السلة" value={stats.received} color="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" icon='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>' />
+            </div>
+
+            <div className="glass rounded-2xl shadow-xl overflow-hidden">
+              <div className="p-4 border-b border-white/20 dark:border-white/5">
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                  <div className="flex gap-1 flex-wrap">
+                    {[
+                      { key: 'all', label: 'الكل' },
+                      { key: 'pending', label: 'قيد الانتظار' },
+                      { key: 'approved', label: 'تمت الموافقة' },
+                      { key: 'rejected', label: 'مرفوض' },
+                      { key: 'received_basket', label: 'تم الاستلام' },
+                    ].map(f => (
+                      <button key={f.key} onClick={() => setFilter(f.key)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          filter === f.key ? 'bg-[var(--accent)] text-white' : 'bg-white/30 dark:bg-white/5 text-white/70 hover:text-white hover:bg-white/40'
+                        }`}>{f.label}</button>
+                    ))}
+                  </div>
+                  <div className="w-full sm:w-64">
+                    <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg bg-white/50 dark:bg-white/5 border border-white/30 dark:border-white/10 text-sm text-[var(--fg)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                      placeholder="بحث بالاسم أو رقم الهوية..." />
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto scroll-hide">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/20 dark:border-white/5 bg-white/30 dark:bg-white/5">
+                      <th className="text-right py-3 px-2 font-medium text-[var(--muted)] text-xs">الاسم / رقم الهوية</th>
+                      <th className="text-right py-3 px-2 font-medium text-[var(--muted)] text-xs">الجوال</th>
+                      <th className="text-right py-3 px-2 font-medium text-[var(--muted)] text-xs">عدد الأسرة</th>
+                      <th className="text-right py-3 px-2 font-medium text-[var(--muted)] text-xs">تاريخ التقديم</th>
+                      <th className="text-right py-3 px-2 font-medium text-[var(--muted)] text-xs">الحالة</th>
+                      <th className="text-right py-3 px-2 font-medium text-[var(--muted)] text-xs">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(app => (
+                      <ApplicantRow key={app.id} app={app} onAction={handleAction} />
+                    ))}
+                    {filtered.length === 0 && (
+                      <tr><td colSpan={6} className="text-center py-8 text-[var(--muted)] text-sm">لا يوجد متقدمين</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-3 border-t border-white/20 dark:border-white/5 text-xs text-white/70 text-center">
+                إجمالي: {filtered.length} من أصل {applicants.length} متقدم
+              </div>
+            </div>
+          </div>
+
+          {selectedApp && (
+            <DetailModal app={selectedApp} onClose={() => setSelectedApp(null)} onAction={handleAction} />
+          )}
+
+          {toast && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl glass-strong text-sm font-medium shadow-2xl fade-in">
+              {toast}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(MosqueAdminPage));
+  </script>
+</body>
+</html>

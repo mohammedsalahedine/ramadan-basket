@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>نظام إدارة سلال رمضان — تسجيل الدخول</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0faf5', 100: '#d9f2e3', 200: '#b3e5c8', 300: '#80d4a6',
+              500: '#2d9f6e', 600: '#238258', 700: '#1a6545', 800: '#124d34',
+              900: '#0a3322'
+            },
+            surface: '#fafafa',
+            'surface-dark': '#0f0f0f'
+          },
+          fontFamily: {
+            arabic: ['"Amiri"', '"Noto Sans Arabic"', 'Tahoma', 'system-ui', 'sans-serif'],
+            display: ['"Amiri"', 'Georgia', 'serif']
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      oklch(98% 0.004 240);
+      --surface: oklch(100% 0 0);
+      --fg:      oklch(20% 0.02 240);
+      --muted:   oklch(50% 0.018 240);
+      --border:  oklch(90% 0.006 240);
+      --accent:  oklch(56% 0.12 170);
+    }
+    body { font-family: 'Amiri', 'Noto Sans Arabic', Tahoma, system-ui, sans-serif; }
+    h1, h2, h3, .font-arabic { font-family: 'Amiri', 'Noto Sans Arabic', Georgia, serif; }
+    .dark body, .dark { --bg: #0f0f0f; --surface: #1a1a1a; --fg: #f0f0f0; --muted: #888; --border: #2a2a2a; }
+    .bg-mosque-fixed { background-image: url('mosque-bg.jpg'); background-size: 110% auto; background-position: center; background-repeat: no-repeat; background-attachment: fixed; animation: kenBurns 20s ease-in-out infinite alternate; }
+    .bg-mosque-fixed::before { content: ''; position: fixed; inset: 0; background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.55) 100%); z-index: 0; }
+    @keyframes kenBurns { 0% { background-size: 110% auto; background-position: center; } 100% { background-size: 130% auto; background-position: 60% 50%; } }
+    .glass { background: rgba(255,255,255,0.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2); }
+    .dark .glass { background: rgba(15,15,15,0.55); border-color: rgba(255,255,255,0.08); }
+    .glass-strong { background: rgba(255,255,255,0.8); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.25); }
+    .dark .glass-strong { background: rgba(15,15,15,0.7); border-color: rgba(255,255,255,0.08); }
+    input, select, textarea, button { font-family: inherit; }
+    input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px rgba(255,255,255,0.8) inset; }
+    .dark input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px rgba(15,15,15,0.8) inset; -webkit-text-fill-color: #f0f0f0; }
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .text-shadow-lg { text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+  </style>
+</head>
+<body class="bg-mosque-fixed text-[var(--fg)] min-h-screen flex flex-col transition-colors duration-300 relative">
+  <div id="root" class="relative z-10"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const LANTERN_SVG = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2v2M8 4h8M6 8h12M5 12h14M6 16h12M8 20h8M12 22v-2"/><path d="M12 2C8 4 6 8 6 12s2 8 6 10c4-2 6-6 6-10S16 4 12 2z" fill="none"/></svg>`;
+
+    function ThemeToggle({ dark, onToggle }) {
+      return (
+        <button onClick={onToggle}
+          className="fixed top-4 start-4 z-50 w-10 h-10 rounded-xl glass flex items-center justify-center text-white/70 hover:text-white transition-all shadow-lg hover:shadow-xl"
+          aria-label="تبديل الوضع المظلم">
+          {dark ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          )}
+        </button>
+      );
+    }
+
+    function LoginForm({ onLogin, dark }) {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [role, setRole] = useState('applicant');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [showPassword, setShowPassword] = useState(false);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (!email.trim() || !password.trim()) {
+          setError('يرجى إدخال البريد الإلكتروني وكلمة المرور');
+          return;
+        }
+        setLoading(true);
+        await new Promise(r => setTimeout(r, 800));
+        setLoading(false);
+        onLogin({ email, password, role });
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="w-full max-w-md fade-in">
+            <div className="text-center mb-8">
+              <div className="text-[var(--accent)] mb-2 inline-flex drop-shadow-lg" dangerouslySetInnerHTML={{ __html: LANTERN_SVG.replace('width="24"', 'width="48"').replace('height="24"', 'height="48"') }} />
+              <h1 className="text-3xl font-bold text-white text-shadow-lg">نظام إدارة سلال رمضان</h1>
+              <p className="text-white/80 mt-2 text-sm drop-shadow-md">منصة التوزيع العادل لمنع الازدواجية</p>
+            </div>
+
+            <div className="glass-strong rounded-2xl shadow-xl p-6">
+              <h2 className="text-xl font-semibold mb-6 text-center">تسجيل الدخول</h2>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)] mb-1.5">البريد الإلكتروني</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/30 dark:border-white/10 text-[var(--fg)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all"
+                    placeholder="admin@example.com" dir="ltr" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)] mb-1.5">كلمة المرور</label>
+                  <div className="relative">
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-white/30 dark:border-white/10 text-[var(--fg)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-all ps-10"
+                      placeholder="••••••••" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 start-0 flex items-center ps-3 text-[var(--muted)] hover:text-[var(--fg)]">
+                      {showPassword ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)] mb-1.5">نوع المستخدم</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'applicant', label: 'مستفيد' },
+                      { value: 'mosque_admin', label: 'مشرف مسجد' },
+                      { value: 'super_admin', label: 'مدير النظام' }
+                    ].map(r => (
+                      <button key={r.value} type="button" onClick={() => setRole(r.value)}
+                        className={`py-2.5 px-3 rounded-xl text-sm font-medium border transition-all ${
+                          role === r.value
+                            ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
+                            : 'bg-[var(--bg)] text-[var(--muted)] border-[var(--border)] hover:border-[var(--accent)]'
+                        }`}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading}
+                  className="w-full py-3 rounded-xl bg-[var(--accent)] text-white font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  {loading && (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  )}
+                  {loading ? 'جاري التحقق...' : 'تسجيل الدخول'}
+                </button>
+              </form>
+
+              <div className="mt-6 pt-4 border-t border-[var(--border)] text-center">
+                <a href="register.html" className="text-sm text-[var(--accent)] hover:underline font-medium">
+                  ليس لديك حساب؟ سجل كعائلة مستفيدة
+                </a>
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <a href="status.html" className="text-xs text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                تتبع حالة طلبك
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [dark, setDark] = useState(() => {
+        try { return localStorage.getItem('rm-dark') === 'true'; } catch { return false; }
+      });
+
+      useEffect(() => {
+        document.documentElement.classList.toggle('dark', dark);
+        try { localStorage.setItem('rm-dark', dark); } catch {}
+      }, [dark]);
+
+      const handleLogin = useCallback((data) => {
+        const roleRoutes = {
+          applicant: 'status.html',
+          mosque_admin: 'mosque-admin.html',
+          super_admin: 'super-admin.html'
+        };
+        window.location.href = roleRoutes[data.role] || 'status.html';
+      }, []);
+
+      return (
+        <>
+          <ThemeToggle dark={dark} onToggle={() => setDark(d => !d)} />
+          <LoginForm onLogin={handleLogin} dark={dark} />
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "super-admin.html",
+  "entry": "super-admin.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-20T14:17:22.566Z",
+  "updatedAt": "2026-06-20T14:17:22.566Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}
